@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useI18n } from "../i18n/LanguageProvider";
 
@@ -33,19 +34,21 @@ export default function Nav() {
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 md:px-10">
         <a
           href="#top"
-          className={`font-display text-2xl tracking-tight transition-colors ${
-            scrolled || open ? "text-[var(--foreground)]" : "text-white"
-          }`}
+          aria-label="Teresie Photo"
+          className="relative block h-12 w-12 md:h-14 md:w-14"
         >
-          Teresie
-          <span
-            className={`italic transition-colors ${
-              scrolled || open ? "text-[var(--accent-dark)]" : "text-[var(--accent)]"
+          <Image
+            src="/brand/logo.png"
+            alt="Teresie Photo"
+            fill
+            priority
+            sizes="56px"
+            className={`object-contain transition-[filter] duration-300 ${
+              scrolled || open
+                ? ""
+                : "brightness-0 invert drop-shadow-[0_1px_6px_rgba(0,0,0,0.45)]"
             }`}
-          >
-            .
-          </span>
-          Photo
+          />
         </a>
 
         <nav className="hidden items-center gap-8 md:flex">
