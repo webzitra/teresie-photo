@@ -35,14 +35,14 @@ export default function Nav() {
         <a
           href="#top"
           aria-label="Teresie Photo"
-          className="relative block h-12 w-12 md:h-14 md:w-14"
+          className="relative block h-16 w-16 md:h-20 md:w-20"
         >
           <Image
             src="/brand/logo.png"
             alt="Teresie Photo"
             fill
             priority
-            sizes="56px"
+            sizes="80px"
             className={`object-contain transition-[filter] duration-300 ${
               scrolled || open
                 ? ""

@@ -12,9 +12,9 @@ export default function Footer() {
           <Image
             src="/brand/logo.png"
             alt="Teresie Photo"
-            width={44}
-            height={44}
-            className="h-11 w-11 object-contain"
+            width={64}
+            height={64}
+            className="h-16 w-16 object-contain"
           />
           <span className="hidden md:inline">{t.footer.tagline}</span>
         </div>
