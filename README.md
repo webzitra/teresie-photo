@@ -1,36 +1,94 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Teresie.Photo
 
-## Getting Started
+Web pro fotografku **Terezii Flaškovou** — svatební, párová a portrétní fotografie.
 
-First, run the development server:
+Postaveno na **Next.js 16 + Tailwind CSS 4** s plnou jazykovou podporou **CZ / EN**.
+
+## Co web obsahuje
+
+- **Hero** s velkou fotkou a CTA tlačítky
+- **O mně** — příběh, statistiky, citace
+- **Ceník** — 4 svatební balíčky (Bronze / Silver / Gold / Platinum) + portréty / páry / rodina
+- **Portfolio** — galerie s filtrem podle kategorie (vše / svatby / páry / portréty / rodina)
+- **Kontakt** — formulář (otevírá `mailto:` s předvyplněnými údaji) + Instagram + Facebook
+- **Plně responzivní**, smooth scroll, mobilní hamburger menu
+- **Jazykový přepínač CZ/EN** v navigaci (uloženo do `localStorage`)
+
+## Spuštění lokálně
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Otevři http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Build
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build   # production build (testuje TypeScript + generuje statické stránky)
+npm start       # spustí production server
+```
 
-## Learn More
+## Editace obsahu
 
-To learn more about Next.js, take a look at the following resources:
+Veškerý text (CZ + EN) je na jednom místě:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+app/i18n/translations.ts
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Stačí editovat řetězce — obě jazykové verze vedle sebe.
 
-## Deploy on Vercel
+### Výměna obrázků
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Aktuálně se používají **placeholdery z Unsplash** (svatební a portrétní fotografie zdarma k použití).
+Pro nahrazení Tereziných fotek:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Hero: `app/components/Hero.tsx` — řádek se `<Image src=…>`
+2. About fotka: `app/components/About.tsx`
+3. Portfolio galerie: pole `items` v `app/components/Portfolio.tsx`
+
+Doporučení: nahraj fotky do `public/photos/` a odkazuj se na ně přes `/photos/nazev.jpg`.
+
+## Deploy na Vercel
+
+```bash
+# jednorázově
+npm i -g vercel
+vercel login
+vercel              # preview deploy
+vercel --prod       # production deploy
+```
+
+Nebo přes GitHub:
+
+1. Push repo do `github.com/webzitra/teresie-photo`
+2. V Vercel dashboardu **Add New → Project → Import** z GitHubu
+3. Default Next.js nastavení → Deploy
+4. (volitelně) připojit doménu `teresiephoto.cz` v `Settings → Domains`
+
+## Tech stack
+
+- Next.js 16 (App Router, Turbopack)
+- React 19
+- Tailwind CSS 4
+- TypeScript 5
+- Fonty: **Cormorant Garamond** (nadpisy) + **Inter** (text), oboje přes `next/font`
+
+## Struktura
+
+```
+app/
+├── components/        # Nav, Hero, About, Services, Portfolio, Contact, Footer
+├── i18n/
+│   ├── LanguageProvider.tsx   # React Context pro jazyk
+│   └── translations.ts        # všechny texty CZ/EN
+├── globals.css        # design tokeny + utility třídy
+├── layout.tsx         # root layout, fonty, meta
+└── page.tsx           # skládá sekce dohromady
+```
+
+---
+
+Vytvořeno [WebZítra](https://webzitra.cz).
