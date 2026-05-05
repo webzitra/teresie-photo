@@ -2,22 +2,25 @@
 
 // WebZítra edit overlay — client-side component that activates when the
 // page is loaded inside the WebZítra editor iframe (signalled by
-// `?wz_edit=1` on the URL). It does three things:
+// `?wz_edit=1` on the URL).
 //
-//   1. Hover/click handlers on every [data-wz-field] element. Click
-//      posts `wz:focus-field` to the editor parent so the matching
-//      form input gets focus + a highlight ring.
-//   2. Origin-locked listener for messages from the editor. On
-//      `wz:content-update` it walks the new content document and
+// Capabilities:
+//   1. Single click on a [data-wz-field] element posts wz:focus-field
+//      to the editor parent so the matching form input gains focus.
+//   2. Double click on a text [data-wz-field] flips contentEditable
+//      on, selects all, and lets the user edit inline. Blur or Enter
+//      commits — we post wz:inline-text-update with the new value.
+//      Escape cancels and reverts to the previous text.
+//   3. Origin-locked listener for messages from the editor. On
+//      wz:content-update it walks the new content document and
 //      patches the DOM (textContent for text fields, src for images)
-//      so the editor can preview saves without waiting for ISR.
-//   3. Sends `wz:client-ready` once mounted so the editor knows the
-//      handshake completed and can hide its loading chip.
+//      so saves preview without waiting for ISR.
+//   4. Sends wz:client-ready once mounted so the editor hides its
+//      loading chip.
 //
 // The component renders nothing on the production site (no `wz_edit`
-// param, no listeners attached). Loading the file as part of the
-// bundle is acceptable — body is a couple of useEffects that early-
-// return when not in edit mode.
+// param, no listeners attached). Bundle cost is a couple of
+// useEffects that early-return when not in edit mode.
 
 import { useEffect } from "react";
 
@@ -42,6 +45,15 @@ const HIGHLIGHT_CSS = `
 [data-wz-edit-active="true"] {
   outline: 2px solid #7c3aed !important;
   outline-offset: 3px !important;
+}
+[data-wz-edit-inline="true"] {
+  outline: 2px solid #7c3aed !important;
+  outline-offset: 3px !important;
+  cursor: text !important;
+  background: rgba(124, 58, 237, 0.06);
+}
+[data-wz-edit-inline="true"]:focus {
+  outline-offset: 4px !important;
 }
 `;
 
@@ -81,6 +93,9 @@ function getAtPath(doc: unknown, pathStr: string): unknown {
 
 function applyContent(content: unknown) {
   document.querySelectorAll<HTMLElement>("[data-wz-field]").forEach((el) => {
+    // Don't clobber the element the user is currently editing inline
+    // — that would yank what they're typing out from under them.
+    if (el.getAttribute("data-wz-edit-inline") === "true") return;
     const path = el.getAttribute("data-wz-field");
     if (!path) return;
     const value = getAtPath(content, path);
@@ -95,6 +110,33 @@ function applyContent(content: unknown) {
   });
 }
 
+// Tags whose textContent we let the user edit inline. Images/links
+// route through other affordances (image picker for IMG, link editor
+// later). LI is in here because lists of strings render each item as
+// a <p>/<span> child, but the parent element itself often carries
+// the data-wz-field marker.
+const INLINE_EDITABLE_TAGS = new Set([
+  "H1",
+  "H2",
+  "H3",
+  "H4",
+  "H5",
+  "H6",
+  "P",
+  "SPAN",
+  "A",
+  "LI",
+  "BUTTON",
+  "BLOCKQUOTE",
+  "FIGCAPTION",
+  "STRONG",
+  "EM",
+]);
+
+function isInlineEditable(el: HTMLElement): boolean {
+  return INLINE_EDITABLE_TAGS.has(el.tagName);
+}
+
 export function WebzitraEditOverlay() {
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -106,27 +148,101 @@ export function WebzitraEditOverlay() {
     injectStyle();
 
     let activeEl: HTMLElement | null = null;
+    let inlineEl: HTMLElement | null = null;
+    let inlineOriginalText = "";
+
     function setActive(el: HTMLElement | null) {
       if (activeEl) activeEl.removeAttribute("data-wz-edit-active");
       activeEl = el;
       if (el) el.setAttribute("data-wz-edit-active", "true");
     }
 
+    function postToEditor(message: Record<string, unknown>) {
+      EDITOR_ORIGINS.forEach((origin) => {
+        window.parent.postMessage(message, origin);
+      });
+    }
+
+    function exitInline(commit: boolean) {
+      if (!inlineEl) return;
+      const el = inlineEl;
+      const path = el.getAttribute("data-wz-field") || "";
+      const newText = el.textContent ?? "";
+      el.removeAttribute("data-wz-edit-inline");
+      el.removeAttribute("contenteditable");
+      el.removeAttribute("spellcheck");
+      // Detach the input listeners that the inline session installed.
+      el.removeEventListener("blur", onInlineBlur);
+      el.removeEventListener("keydown", onInlineKeydown);
+      inlineEl = null;
+      if (commit && path && newText !== inlineOriginalText) {
+        postToEditor({ type: "wz:inline-text-update", path, value: newText });
+      } else if (!commit) {
+        // Restore original text on cancel.
+        el.textContent = inlineOriginalText;
+      }
+    }
+
+    function onInlineBlur() {
+      exitInline(true);
+    }
+
+    function onInlineKeydown(e: KeyboardEvent) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        (e.target as HTMLElement).blur();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        exitInline(false);
+      }
+    }
+
+    function startInline(el: HTMLElement) {
+      // If another element was already in inline edit, commit it.
+      if (inlineEl && inlineEl !== el) exitInline(true);
+      inlineEl = el;
+      inlineOriginalText = el.textContent ?? "";
+      el.setAttribute("contenteditable", "true");
+      el.setAttribute("spellcheck", "true");
+      el.setAttribute("data-wz-edit-inline", "true");
+      el.addEventListener("blur", onInlineBlur);
+      el.addEventListener("keydown", onInlineKeydown);
+      el.focus();
+      // Select-all so the first keystroke replaces the placeholder.
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    }
+
     function onClick(e: MouseEvent) {
       const target = e.target as Element | null;
       const fieldEl = target?.closest("[data-wz-field]") as HTMLElement | null;
       if (!fieldEl) return;
+      // While inline-editing, let clicks inside the editing element
+      // pass through (move the caret). Click outside ends the session.
+      if (inlineEl && fieldEl !== inlineEl) {
+        exitInline(true);
+        return;
+      }
+      if (inlineEl === fieldEl) return;
       const path = fieldEl.getAttribute("data-wz-field");
       if (!path) return;
       e.preventDefault();
       e.stopPropagation();
       setActive(fieldEl);
-      // We don't know which editor origin to target, so post to all
-      // allowed origins. The non-matching ones silently drop the
-      // message because of the targetOrigin filter.
-      EDITOR_ORIGINS.forEach((origin) => {
-        window.parent.postMessage({ type: "wz:focus-field", path }, origin);
-      });
+      postToEditor({ type: "wz:focus-field", path });
+    }
+
+    function onDoubleClick(e: MouseEvent) {
+      const target = e.target as Element | null;
+      const fieldEl = target?.closest("[data-wz-field]") as HTMLElement | null;
+      if (!fieldEl || !isInlineEditable(fieldEl)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setActive(fieldEl);
+      startInline(fieldEl);
     }
 
     function onMessage(e: MessageEvent) {
@@ -142,19 +258,20 @@ export function WebzitraEditOverlay() {
     }
 
     document.addEventListener("click", onClick, true);
+    document.addEventListener("dblclick", onDoubleClick, true);
     window.addEventListener("message", onMessage);
 
     // Tell the editor we're alive. The editor will reply with
     // wz:editor-ready and start sending content updates.
-    EDITOR_ORIGINS.forEach((origin) => {
-      window.parent.postMessage({ type: "wz:client-ready" }, origin);
-    });
+    postToEditor({ type: "wz:client-ready" });
 
     return () => {
       document.removeEventListener("click", onClick, true);
+      document.removeEventListener("dblclick", onDoubleClick, true);
       window.removeEventListener("message", onMessage);
       const style = document.getElementById(HIGHLIGHT_STYLE_ID);
       if (style) style.remove();
+      if (inlineEl) exitInline(false);
       setActive(null);
     };
   }, []);
