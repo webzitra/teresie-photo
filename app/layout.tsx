@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Cormorant_Garamond, Inter } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "./i18n/LanguageProvider";
+import { getWebzitraContent } from "./lib/webzitra-content";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -27,18 +28,23 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Server-side fetch — overlays WebZítra-edited content on top of
+  // translations.cs. Returns null when WEBZITRA_PROJECT_ID isn't set
+  // or the API is unreachable, in which case LanguageProvider falls
+  // back to the static document.
+  const overrideCs = await getWebzitraContent();
   return (
     <html
       lang="cs"
       className={`${inter.variable} ${cormorant.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <LanguageProvider>{children}</LanguageProvider>
+        <LanguageProvider overrideCs={overrideCs}>{children}</LanguageProvider>
       </body>
     </html>
   );

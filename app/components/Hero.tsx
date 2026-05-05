@@ -21,20 +21,37 @@ export default function Hero() {
       <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/30 to-black/70" />
 
       <div className="relative z-10 mx-auto flex min-h-[100svh] max-w-6xl flex-col items-start justify-end px-6 pb-24 pt-40 md:px-10 md:pb-32">
-        <span className="eyebrow !text-[#f5c98c] !text-sm fade-up drop-shadow-[0_2px_10px_rgba(0,0,0,0.6)]">
+        <span
+          className="eyebrow !text-[#f5c98c] !text-sm fade-up drop-shadow-[0_2px_10px_rgba(0,0,0,0.6)]"
+          data-wz-field="hero.eyebrow"
+        >
           {t.hero.eyebrow}
         </span>
-        <h1 className="font-display mt-4 max-w-4xl text-5xl leading-[1.05] text-white md:text-7xl lg:text-[5.5rem] fade-up">
+        <h1
+          className="font-display mt-4 max-w-4xl text-5xl leading-[1.05] text-white md:text-7xl lg:text-[5.5rem] fade-up"
+          data-wz-field="hero.title"
+        >
           {t.hero.title}
         </h1>
-        <p className="mt-6 max-w-2xl text-base text-white/85 md:text-lg fade-up">
+        <p
+          className="mt-6 max-w-2xl text-base text-white/85 md:text-lg fade-up"
+          data-wz-field="hero.subtitle"
+        >
           {t.hero.subtitle}
         </p>
         <div className="mt-10 flex flex-wrap gap-3 fade-up">
-          <a href="#contact" className="btn btn-hero-primary">
+          <a
+            href="#contact"
+            className="btn btn-hero-primary"
+            data-wz-field="hero.ctaPrimary"
+          >
             {t.hero.ctaPrimary}
           </a>
-          <a href="#portfolio" className="btn btn-hero-ghost">
+          <a
+            href="#portfolio"
+            className="btn btn-hero-ghost"
+            data-wz-field="hero.ctaSecondary"
+          >
             {t.hero.ctaSecondary}
           </a>
         </div>
