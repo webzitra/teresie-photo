@@ -3,6 +3,7 @@ import { Cormorant_Garamond, Inter } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "./i18n/LanguageProvider";
 import { getWebzitraContent } from "./lib/webzitra-content";
+import { WebzitraEditOverlay } from "./components/WebzitraEditOverlay";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -45,6 +46,10 @@ export default async function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <LanguageProvider overrideCs={overrideCs}>{children}</LanguageProvider>
+        {/* Edit overlay self-activates only when loaded inside the
+            WebZítra editor iframe (?wz_edit=1). Renders nothing on the
+            production site. */}
+        <WebzitraEditOverlay />
       </body>
     </html>
   );
