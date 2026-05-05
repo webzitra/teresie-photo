@@ -38,13 +38,22 @@ export default function Contact() {
     >
       <div className="mx-auto grid max-w-7xl gap-12 px-6 md:grid-cols-12 md:gap-16 md:px-10">
         <div className="md:col-span-5">
-          <span className="eyebrow !text-[var(--accent)]">
+          <span
+            className="eyebrow !text-[var(--accent)]"
+            data-wz-field="contact.eyebrow"
+          >
             {t.contact.eyebrow}
           </span>
-          <h2 className="font-display mt-3 text-4xl leading-tight md:text-5xl lg:text-6xl">
+          <h2
+            className="font-display mt-3 text-4xl leading-tight md:text-5xl lg:text-6xl"
+            data-wz-field="contact.title"
+          >
             {t.contact.title}
           </h2>
-          <p className="mt-5 text-[var(--background)]/70 text-lg">
+          <p
+            className="mt-5 text-[var(--background)]/70 text-lg"
+            data-wz-field="contact.lead"
+          >
             {t.contact.lead}
           </p>
 

@@ -14,14 +14,27 @@ export default function Services() {
     >
       <div className="mx-auto max-w-7xl px-6 md:px-10">
         <div className="max-w-2xl">
-          <span className="eyebrow">{s.eyebrow}</span>
-          <h2 className="font-display mt-3 text-4xl leading-tight md:text-5xl lg:text-6xl">
+          <span className="eyebrow" data-wz-field="services.eyebrow">
+            {s.eyebrow}
+          </span>
+          <h2
+            className="font-display mt-3 text-4xl leading-tight md:text-5xl lg:text-6xl"
+            data-wz-field="services.title"
+          >
             {s.title}
           </h2>
-          <p className="mt-5 text-[var(--muted)] text-lg">{s.lead}</p>
+          <p
+            className="mt-5 text-[var(--muted)] text-lg"
+            data-wz-field="services.lead"
+          >
+            {s.lead}
+          </p>
         </div>
 
-        <h3 className="font-display mt-16 text-2xl text-[var(--accent-dark)] md:text-3xl">
+        <h3
+          className="font-display mt-16 text-2xl text-[var(--accent-dark)] md:text-3xl"
+          data-wz-field="services.weddingTitle"
+        >
           {s.weddingTitle}
         </h3>
 
@@ -76,7 +89,10 @@ export default function Services() {
           ))}
         </div>
 
-        <h3 className="font-display mt-20 text-2xl text-[var(--accent-dark)] md:text-3xl">
+        <h3
+          className="font-display mt-20 text-2xl text-[var(--accent-dark)] md:text-3xl"
+          data-wz-field="services.otherTitle"
+        >
           {s.otherTitle}
         </h3>
 
@@ -114,7 +130,12 @@ export default function Services() {
           ))}
         </div>
 
-        <p className="mt-10 text-sm italic text-[var(--muted)]">{s.note}</p>
+        <p
+          className="mt-10 text-sm italic text-[var(--muted)]"
+          data-wz-field="services.note"
+        >
+          {s.note}
+        </p>
       </div>
     </section>
   );

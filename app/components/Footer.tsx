@@ -16,7 +16,9 @@ export default function Footer() {
             height={64}
             className="h-16 w-16 object-contain"
           />
-          <span className="hidden md:inline">{t.footer.tagline}</span>
+          <span className="hidden md:inline" data-wz-field="footer.tagline">
+            {t.footer.tagline}
+          </span>
         </div>
         <div className="flex flex-col items-center gap-1 md:flex-row md:gap-3">
           <span>

@@ -71,6 +71,7 @@ export default function Nav() {
             className={`btn !py-2 !px-5 transition-colors ${
               scrolled ? "btn-primary" : "btn-hero-primary"
             }`}
+            data-wz-field="nav.booking"
           >
             {t.nav.booking}
           </a>
@@ -121,6 +122,7 @@ export default function Nav() {
                 href="#contact"
                 onClick={() => setOpen(false)}
                 className="btn btn-primary !py-2 !px-5"
+                data-wz-field="nav.booking"
               >
                 {t.nav.booking}
               </a>

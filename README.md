@@ -32,7 +32,22 @@ npm start       # spustí production server
 
 ## Editace obsahu
 
-Veškerý text (CZ + EN) je na jednom místě:
+Web má **dvě cesty** jak měnit texty:
+
+### 1. WebZítra editor (klient self-service)
+
+Když je nastavené `WEBZITRA_PROJECT_ID`, web při SSR/ISR fetchuje obsah
+z `app.webzitra.cz/api/public/content/<id>` a překryje jím českou
+verzi z `app/i18n/translations.ts`. Klient si pak může v
+[app.webzitra.cz](https://app.webzitra.cz) měnit texty a změny se
+projeví do 60 s (ISR revalidate) nebo okamžitě přes webhook
+`/api/revalidate`.
+
+Setup viz `.env.example`. Anglická verze zatím zůstává statická.
+
+### 2. Edit zdrojáku (fallback / EN)
+
+Veškerý fallback text (CZ + EN) je na jednom místě:
 
 ```
 app/i18n/translations.ts
