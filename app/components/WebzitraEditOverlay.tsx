@@ -44,54 +44,71 @@ const HIGHLIGHT_STYLE_ID = "wz-edit-overlay-style";
 const HIGHLIGHT_CSS = `
 [data-wz-field] {
   cursor: pointer;
-  transition: outline-color 0.12s ease, outline-offset 0.12s ease;
+  transition: box-shadow 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+              background-color 0.18s ease;
+  border-radius: 2px;
 }
 [data-wz-field]:hover {
-  outline: 2px solid #a855f7;
-  outline-offset: 3px;
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.55),
+              0 4px 16px -4px rgba(168, 85, 247, 0.25);
+  background-color: rgba(168, 85, 247, 0.04);
 }
 [data-wz-edit-active="true"] {
-  outline: 2px solid #7c3aed !important;
-  outline-offset: 3px !important;
+  box-shadow: 0 0 0 2px #7c3aed,
+              0 6px 20px -4px rgba(124, 58, 237, 0.45) !important;
+  background-color: rgba(124, 58, 237, 0.06) !important;
+  animation: wz-active-pulse 1.4s ease-in-out infinite;
+}
+@keyframes wz-active-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px #7c3aed, 0 6px 20px -4px rgba(124, 58, 237, 0.45); }
+  50% { box-shadow: 0 0 0 2px #7c3aed, 0 6px 24px -2px rgba(124, 58, 237, 0.6); }
 }
 [data-wz-edit-inline="true"] {
-  outline: 2px solid #7c3aed !important;
-  outline-offset: 3px !important;
+  box-shadow: 0 0 0 2px #7c3aed !important;
+  background-color: rgba(124, 58, 237, 0.08) !important;
   cursor: text !important;
-  background: rgba(124, 58, 237, 0.06);
+  animation: none !important;
 }
 [data-wz-edit-inline="true"]:focus {
-  outline-offset: 4px !important;
+  box-shadow: 0 0 0 2.5px #7c3aed,
+              0 0 0 5px rgba(124, 58, 237, 0.25) !important;
 }
 [data-wz-section] {
   position: relative;
+  transition: background-color 0.2s ease;
+}
+[data-wz-section-hover="true"] {
+  background-color: rgba(168, 85, 247, 0.025);
 }
 [data-wz-section-hover="true"]::before {
   content: "Upravit sekci";
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: 16px;
+  right: 16px;
   z-index: 9999;
-  padding: 6px 10px;
+  padding: 7px 12px;
   border-radius: 999px;
-  background: rgba(124, 58, 237, 0.95);
+  background: linear-gradient(135deg, #a855f7, #7c3aed);
   color: white;
   font-size: 11px;
   font-weight: 600;
   font-family: -apple-system, system-ui, sans-serif;
   letter-spacing: 0.02em;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 14px -2px rgba(124, 58, 237, 0.45),
+              0 1px 3px rgba(0, 0, 0, 0.18);
   pointer-events: none;
   opacity: 0;
-  animation: wz-section-chip-in 0.15s ease-out forwards;
+  transform: translateY(-6px) scale(0.95);
+  animation: wz-section-chip-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 @keyframes wz-section-chip-in {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(-6px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 [data-wz-section-active="true"] {
-  outline: 2px dashed rgba(124, 58, 237, 0.5);
-  outline-offset: -2px;
+  outline: 2px dashed rgba(124, 58, 237, 0.55);
+  outline-offset: -3px;
+  background-color: rgba(124, 58, 237, 0.025);
 }
 `;
 
