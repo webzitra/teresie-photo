@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useI18n } from "../i18n/LanguageProvider";
+import { getStyle, getValue } from "../lib/webzitra-style";
 
 export default function Hero() {
   const { t } = useI18n();
@@ -24,35 +25,40 @@ export default function Hero() {
         <span
           className="eyebrow !text-[#f5c98c] !text-sm fade-up drop-shadow-[0_2px_10px_rgba(0,0,0,0.6)]"
           data-wz-field="hero.eyebrow"
+          style={getStyle(t.hero.eyebrow)}
         >
-          {t.hero.eyebrow}
+          {getValue(t.hero.eyebrow)}
         </span>
         <h1
           className="font-display mt-4 max-w-4xl text-5xl leading-[1.05] text-white md:text-7xl lg:text-[5.5rem] fade-up"
           data-wz-field="hero.title"
+          style={getStyle(t.hero.title)}
         >
-          {t.hero.title}
+          {getValue(t.hero.title)}
         </h1>
         <p
           className="mt-6 max-w-2xl text-base text-white/85 md:text-lg fade-up"
           data-wz-field="hero.subtitle"
+          style={getStyle(t.hero.subtitle)}
         >
-          {t.hero.subtitle}
+          {getValue(t.hero.subtitle)}
         </p>
         <div className="mt-10 flex flex-wrap gap-3 fade-up">
           <a
             href="#contact"
             className="btn btn-hero-primary"
             data-wz-field="hero.ctaPrimary"
+            style={getStyle(t.hero.ctaPrimary)}
           >
-            {t.hero.ctaPrimary}
+            {getValue(t.hero.ctaPrimary)}
           </a>
           <a
             href="#portfolio"
             className="btn btn-hero-ghost"
             data-wz-field="hero.ctaSecondary"
+            style={getStyle(t.hero.ctaSecondary)}
           >
-            {t.hero.ctaSecondary}
+            {getValue(t.hero.ctaSecondary)}
           </a>
         </div>
       </div>
