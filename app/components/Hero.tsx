@@ -13,7 +13,11 @@ export default function Hero() {
       className="relative isolate min-h-[100svh] w-full overflow-hidden"
     >
       <Image
-        src="/photos/portfolio/DSC_8639-2_kopie.jpg"
+        src={
+          (typeof getValue(t.hero.image) === "string" &&
+            (getValue(t.hero.image) as string)) ||
+          "/photos/portfolio/DSC_8639-2_kopie.jpg"
+        }
         alt=""
         priority
         fill
