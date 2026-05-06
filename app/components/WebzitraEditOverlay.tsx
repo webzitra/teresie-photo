@@ -63,6 +63,36 @@ const HIGHLIGHT_CSS = `
 [data-wz-edit-inline="true"]:focus {
   outline-offset: 4px !important;
 }
+[data-wz-section] {
+  position: relative;
+}
+[data-wz-section-hover="true"]::before {
+  content: "Upravit sekci";
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 9999;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(124, 58, 237, 0.95);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: -apple-system, system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  opacity: 0;
+  animation: wz-section-chip-in 0.15s ease-out forwards;
+}
+@keyframes wz-section-chip-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+[data-wz-section-active="true"] {
+  outline: 2px dashed rgba(124, 58, 237, 0.5);
+  outline-offset: -2px;
+}
 `;
 
 function injectStyle() {
@@ -177,6 +207,7 @@ export function WebzitraEditOverlay() {
     injectStyle();
 
     let activeEl: HTMLElement | null = null;
+    let activeSectionEl: HTMLElement | null = null;
     let inlineEl: HTMLElement | null = null;
     let inlineOriginalText = "";
 
@@ -184,6 +215,14 @@ export function WebzitraEditOverlay() {
       if (activeEl) activeEl.removeAttribute("data-wz-edit-active");
       activeEl = el;
       if (el) el.setAttribute("data-wz-edit-active", "true");
+    }
+
+    function setActiveSection(el: HTMLElement | null) {
+      if (activeSectionEl) {
+        activeSectionEl.removeAttribute("data-wz-section-active");
+      }
+      activeSectionEl = el;
+      if (el) el.setAttribute("data-wz-section-active", "true");
     }
 
     function postToEditor(message: Record<string, unknown>) {
@@ -248,20 +287,46 @@ export function WebzitraEditOverlay() {
     function onClick(e: MouseEvent) {
       const target = e.target as Element | null;
       const fieldEl = target?.closest("[data-wz-field]") as HTMLElement | null;
-      if (!fieldEl) return;
-      // While inline-editing, let clicks inside the editing element
-      // pass through (move the caret). Click outside ends the session.
-      if (inlineEl && fieldEl !== inlineEl) {
-        exitInline(true);
+
+      // 1. Field click — element selection. Element wins over section
+      //    when click target is inside both.
+      if (fieldEl) {
+        if (inlineEl && fieldEl !== inlineEl) {
+          exitInline(true);
+          return;
+        }
+        if (inlineEl === fieldEl) return;
+        const path = fieldEl.getAttribute("data-wz-field");
+        if (!path) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setActive(fieldEl);
+        setActiveSection(null);
+        postToEditor({ type: "wz:focus-field", path });
         return;
       }
-      if (inlineEl === fieldEl) return;
-      const path = fieldEl.getAttribute("data-wz-field");
-      if (!path) return;
-      e.preventDefault();
-      e.stopPropagation();
-      setActive(fieldEl);
-      postToEditor({ type: "wz:focus-field", path });
+
+      // 2. Section click — section selection (background of the
+      //    [data-wz-section] root, no inner field hit).
+      const sectionEl = target?.closest(
+        "[data-wz-section]",
+      ) as HTMLElement | null;
+      if (sectionEl) {
+        const key = sectionEl.getAttribute("data-wz-section");
+        if (!key) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setActive(null);
+        setActiveSection(sectionEl);
+        postToEditor({ type: "wz:focus-section", key });
+        return;
+      }
+
+      // 3. Click outside any marker — clear selection.
+      if (inlineEl) exitInline(true);
+      setActive(null);
+      setActiveSection(null);
+      postToEditor({ type: "wz:focus-clear" });
     }
 
     function onDoubleClick(e: MouseEvent) {
@@ -272,6 +337,35 @@ export function WebzitraEditOverlay() {
       e.stopPropagation();
       setActive(fieldEl);
       startInline(fieldEl);
+    }
+
+    // Section hover: show "Upravit sekci" floating chip when the
+    // cursor is over a section's background (not over a child
+    // [data-wz-field]). Tracks the currently-hovered section so we
+    // can clear the chip on mouseleave.
+    let hoverSectionEl: HTMLElement | null = null;
+    function setHoverSection(el: HTMLElement | null) {
+      if (hoverSectionEl === el) return;
+      if (hoverSectionEl) {
+        hoverSectionEl.removeAttribute("data-wz-section-hover");
+      }
+      hoverSectionEl = el;
+      if (el) el.setAttribute("data-wz-section-hover", "true");
+    }
+    function onMouseMove(e: MouseEvent) {
+      const target = e.target as Element | null;
+      // Field hover takes precedence — chip only over plain section bg.
+      if (target?.closest("[data-wz-field]")) {
+        setHoverSection(null);
+        return;
+      }
+      const sectionEl = target?.closest(
+        "[data-wz-section]",
+      ) as HTMLElement | null;
+      setHoverSection(sectionEl);
+    }
+    function onMouseLeave() {
+      setHoverSection(null);
     }
 
     function onMessage(e: MessageEvent) {
@@ -288,6 +382,8 @@ export function WebzitraEditOverlay() {
 
     document.addEventListener("click", onClick, true);
     document.addEventListener("dblclick", onDoubleClick, true);
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseleave", onMouseLeave);
     window.addEventListener("message", onMessage);
 
     // Tell the editor we're alive. The editor will reply with
@@ -297,11 +393,15 @@ export function WebzitraEditOverlay() {
     return () => {
       document.removeEventListener("click", onClick, true);
       document.removeEventListener("dblclick", onDoubleClick, true);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseleave", onMouseLeave);
       window.removeEventListener("message", onMessage);
       const style = document.getElementById(HIGHLIGHT_STYLE_ID);
       if (style) style.remove();
       if (inlineEl) exitInline(false);
       setActive(null);
+      setActiveSection(null);
+      setHoverSection(null);
     };
   }, []);
 

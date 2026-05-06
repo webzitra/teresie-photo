@@ -26,6 +26,7 @@ export default function Nav() {
 
   return (
     <header
+      data-wz-section="nav"
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
         scrolled
           ? "bg-[var(--background)]/85 backdrop-blur-md border-b border-[var(--border)]"
