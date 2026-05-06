@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useI18n } from "../i18n/LanguageProvider";
+import { getStyle, getValue } from "../lib/webzitra-style";
 
 export default function Footer() {
   const { t } = useI18n();
@@ -16,8 +17,12 @@ export default function Footer() {
             height={64}
             className="h-16 w-16 object-contain"
           />
-          <span className="hidden md:inline" data-wz-field="footer.tagline">
-            {t.footer.tagline}
+          <span
+            className="hidden md:inline"
+            data-wz-field="footer.tagline"
+            style={getStyle(t.footer.tagline)}
+          >
+            {getValue(t.footer.tagline)}
           </span>
         </div>
         <div className="flex flex-col items-center gap-1 md:flex-row md:gap-3">

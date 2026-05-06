@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useI18n } from "../i18n/LanguageProvider";
+import { getStyle, getValue } from "../lib/webzitra-style";
 
 const photos = [
   "/photos/portfolio/DSC_8639-2_kopie.jpg",
@@ -40,20 +41,26 @@ export default function Portfolio() {
     <section id="portfolio" className="py-24 md:py-32">
       <div className="mx-auto max-w-7xl px-6 md:px-10">
         <div className="max-w-2xl">
-          <span className="eyebrow" data-wz-field="portfolio.eyebrow">
-            {t.portfolio.eyebrow}
+          <span
+            className="eyebrow"
+            data-wz-field="portfolio.eyebrow"
+            style={getStyle(t.portfolio.eyebrow)}
+          >
+            {getValue(t.portfolio.eyebrow)}
           </span>
           <h2
             className="font-display mt-3 text-4xl leading-tight md:text-5xl lg:text-6xl"
             data-wz-field="portfolio.title"
+            style={getStyle(t.portfolio.title)}
           >
-            {t.portfolio.title}
+            {getValue(t.portfolio.title)}
           </h2>
           <p
             className="mt-5 text-[var(--muted)] text-lg"
             data-wz-field="portfolio.lead"
+            style={getStyle(t.portfolio.lead)}
           >
-            {t.portfolio.lead}
+            {getValue(t.portfolio.lead)}
           </p>
         </div>
 

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useI18n } from "../i18n/LanguageProvider";
+import { getStyle, getValue } from "../lib/webzitra-style";
 
 export default function Nav() {
   const { t, lang, setLang } = useI18n();
@@ -72,8 +73,9 @@ export default function Nav() {
               scrolled ? "btn-primary" : "btn-hero-primary"
             }`}
             data-wz-field="nav.booking"
+            style={getStyle(t.nav.booking)}
           >
-            {t.nav.booking}
+            {getValue(t.nav.booking)}
           </a>
         </nav>
 

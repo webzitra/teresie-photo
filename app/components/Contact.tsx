@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useI18n } from "../i18n/LanguageProvider";
+import { getStyle, getValue } from "../lib/webzitra-style";
 
 export default function Contact() {
   const { t } = useI18n();
@@ -41,20 +42,23 @@ export default function Contact() {
           <span
             className="eyebrow !text-[var(--accent)]"
             data-wz-field="contact.eyebrow"
+            style={getStyle(t.contact.eyebrow)}
           >
-            {t.contact.eyebrow}
+            {getValue(t.contact.eyebrow)}
           </span>
           <h2
             className="font-display mt-3 text-4xl leading-tight md:text-5xl lg:text-6xl"
             data-wz-field="contact.title"
+            style={getStyle(t.contact.title)}
           >
-            {t.contact.title}
+            {getValue(t.contact.title)}
           </h2>
           <p
             className="mt-5 text-[var(--background)]/70 text-lg"
             data-wz-field="contact.lead"
+            style={getStyle(t.contact.lead)}
           >
-            {t.contact.lead}
+            {getValue(t.contact.lead)}
           </p>
 
           <dl className="mt-10 space-y-5 text-sm">
