@@ -31,6 +31,10 @@ export type Translation = {
     subtitle: string;
     ctaPrimary: string;
     ctaSecondary: string;
+    /** Optional override for the hero photo — when WebZítra editor
+     *  populates this, Hero.tsx uses it instead of the bundled
+     *  fallback image. */
+    image?: string;
   };
   about: {
     eyebrow: string;
