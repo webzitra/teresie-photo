@@ -9,6 +9,7 @@ export default function Hero() {
   return (
     <section
       id="top"
+      data-wz-section="hero"
       className="relative isolate min-h-[100svh] w-full overflow-hidden"
     >
       <Image
@@ -18,6 +19,7 @@ export default function Hero() {
         fill
         sizes="100vw"
         className="object-cover"
+        data-wz-field="hero.image"
       />
       <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/30 to-black/70" />
 

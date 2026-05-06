@@ -7,7 +7,11 @@ import { getStyle, getValue } from "../lib/webzitra-style";
 export default function About() {
   const { t } = useI18n();
   return (
-    <section id="about" className="relative py-24 md:py-32">
+    <section
+      id="about"
+      data-wz-section="about"
+      className="relative py-24 md:py-32"
+    >
       <div className="mx-auto grid max-w-7xl gap-12 px-6 md:grid-cols-12 md:gap-16 md:px-10">
         <div className="md:col-span-5">
           <div className="relative aspect-[4/5] overflow-hidden rounded-sm">

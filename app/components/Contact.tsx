@@ -35,6 +35,7 @@ export default function Contact() {
   return (
     <section
       id="contact"
+      data-wz-section="contact"
       className="relative bg-[var(--foreground)] text-[var(--background)] py-24 md:py-32"
     >
       <div className="mx-auto grid max-w-7xl gap-12 px-6 md:grid-cols-12 md:gap-16 md:px-10">
