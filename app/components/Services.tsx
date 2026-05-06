@@ -48,9 +48,9 @@ export default function Services() {
         </h3>
 
         <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-          {s.packages.map((p) => (
+          {s.packages.map((p, i) => (
             <div
-              key={p.name}
+              key={`pkg-${i}`}
               className={`relative flex flex-col rounded-sm border p-7 transition hover:-translate-y-1 hover:shadow-[0_12px_40px_-20px_rgba(0,0,0,0.3)] ${
                 p.highlight
                   ? "border-[var(--accent)] bg-[var(--background)] shadow-[0_8px_30px_-20px_rgba(0,0,0,0.3)]"
@@ -69,20 +69,42 @@ export default function Services() {
                   fill
                   sizes="160px"
                   className="object-cover"
+                  data-wz-field={`services.packages[${i}].image`}
                 />
               </div>
-              <div className="text-center font-display text-3xl">{p.name}</div>
+              <div
+                className="text-center font-display text-3xl"
+                data-wz-field={`services.packages[${i}].name`}
+                style={getStyle(p.name)}
+              >
+                {getValue(p.name)}
+              </div>
               <div className="mt-4 flex items-baseline justify-center gap-1">
-                <span className="font-display text-5xl">{p.price}</span>
-                <span className="text-sm text-[var(--muted)]">
-                  {s.currency}
+                <span
+                  className="font-display text-5xl"
+                  data-wz-field={`services.packages[${i}].price`}
+                  style={getStyle(p.price)}
+                >
+                  {getValue(p.price)}
+                </span>
+                <span
+                  className="text-sm text-[var(--muted)]"
+                  data-wz-field="services.currency"
+                  style={getStyle(s.currency)}
+                >
+                  {getValue(s.currency)}
                 </span>
               </div>
               <ul className="mt-6 space-y-2.5 text-sm text-[var(--foreground)]/80">
-                {p.features.map((f) => (
-                  <li key={f} className="flex gap-2">
+                {p.features.map((f, j) => (
+                  <li key={`${i}-${j}`} className="flex gap-2">
                     <span className="mt-2 h-1 w-1 rounded-full bg-[var(--accent)] flex-shrink-0" />
-                    <span>{f}</span>
+                    <span
+                      data-wz-field={`services.packages[${i}].features[${j}]`}
+                      style={getStyle(f)}
+                    >
+                      {getValue(f)}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -91,8 +113,10 @@ export default function Services() {
                 className={`btn mt-7 ${
                   p.highlight ? "btn-primary" : "btn-ghost"
                 }`}
+                data-wz-field="services.bookCta"
+                style={getStyle(s.bookCta)}
               >
-                {s.bookCta}
+                {getValue(s.bookCta)}
               </a>
             </div>
           ))}
@@ -107,9 +131,9 @@ export default function Services() {
         </h3>
 
         <div className="mt-8 grid gap-5 md:grid-cols-3">
-          {s.others.map((o) => (
+          {s.others.map((o, i) => (
             <div
-              key={o.name}
+              key={`other-${i}`}
               className="group flex flex-col overflow-hidden rounded-sm border border-[var(--border)] bg-[var(--background)]/60 transition hover:-translate-y-1 hover:shadow-[0_12px_40px_-20px_rgba(0,0,0,0.3)]"
             >
               <div className="relative aspect-[4/3] overflow-hidden">
@@ -119,21 +143,47 @@ export default function Services() {
                   fill
                   sizes="(min-width: 768px) 33vw, 100vw"
                   className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                  data-wz-field={`services.others[${i}].image`}
                 />
               </div>
               <div className="flex flex-1 flex-col p-7">
-                <div className="font-display text-2xl">{o.name}</div>
+                <div
+                  className="font-display text-2xl"
+                  data-wz-field={`services.others[${i}].name`}
+                  style={getStyle(o.name)}
+                >
+                  {getValue(o.name)}
+                </div>
                 <div className="mt-3 flex items-baseline gap-1">
-                  <span className="font-display text-4xl">{o.price}</span>
-                  <span className="text-sm text-[var(--muted)]">
-                    {s.currency}
+                  <span
+                    className="font-display text-4xl"
+                    data-wz-field={`services.others[${i}].price`}
+                    style={getStyle(o.price)}
+                  >
+                    {getValue(o.price)}
+                  </span>
+                  <span
+                    className="text-sm text-[var(--muted)]"
+                    data-wz-field="services.currency"
+                    style={getStyle(s.currency)}
+                  >
+                    {getValue(s.currency)}
                   </span>
                 </div>
-                <p className="mt-5 text-sm text-[var(--foreground)]/75 leading-relaxed">
-                  {o.desc}
+                <p
+                  className="mt-5 text-sm text-[var(--foreground)]/75 leading-relaxed"
+                  data-wz-field={`services.others[${i}].desc`}
+                  style={getStyle(o.desc)}
+                >
+                  {getValue(o.desc)}
                 </p>
-                <a href="#contact" className="btn btn-ghost mt-6 self-start">
-                  {s.bookCta}
+                <a
+                  href="#contact"
+                  className="btn btn-ghost mt-6 self-start"
+                  data-wz-field="services.bookCta"
+                  style={getStyle(s.bookCta)}
+                >
+                  {getValue(s.bookCta)}
                 </a>
               </div>
             </div>

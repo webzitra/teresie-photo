@@ -150,12 +150,18 @@ export default function Contact() {
             <button
               type="submit"
               className="btn !bg-[var(--accent)] !text-white hover:!bg-[var(--accent-dark)]"
+              data-wz-field="contact.form.submit"
+              style={getStyle(t.contact.form.submit)}
             >
-              {t.contact.form.submit}
+              {getValue(t.contact.form.submit)}
             </button>
             {sent && (
-              <span className="text-sm text-[var(--accent)]">
-                {t.contact.form.success}
+              <span
+                className="text-sm text-[var(--accent)]"
+                data-wz-field="contact.form.success"
+                style={getStyle(t.contact.form.success)}
+              >
+                {getValue(t.contact.form.success)}
               </span>
             )}
           </div>

@@ -30,11 +30,23 @@ export default function Footer() {
         </div>
         <div className="flex flex-col items-center gap-1 md:flex-row md:gap-3">
           <span>
-            © {new Date().getFullYear()} Terezie Flašková. {t.footer.rights}.
+            © {new Date().getFullYear()} Terezie Flašková.{" "}
+            <span
+              data-wz-field="footer.rights"
+              style={getStyle(t.footer.rights)}
+            >
+              {getValue(t.footer.rights)}
+            </span>
+            .
           </span>
           <span className="hidden md:inline">·</span>
           <span>
-            {t.footer.madeBy}{" "}
+            <span
+              data-wz-field="footer.madeBy"
+              style={getStyle(t.footer.madeBy)}
+            >
+              {getValue(t.footer.madeBy)}
+            </span>{" "}
             <a
               href="https://webzitra.cz"
               target="_blank"
