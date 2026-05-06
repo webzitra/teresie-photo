@@ -176,18 +176,29 @@ function applyContent(content: unknown) {
     const path = el.getAttribute("data-wz-field");
     if (!path) return;
     const field = getAtPath(content, path);
-    if (field === undefined) return;
-    const value = getValue(field);
-    if (el.tagName === "IMG" && typeof value === "string") {
-      (el as HTMLImageElement).src = value;
-    } else if (typeof value === "string" || typeof value === "number") {
-      el.textContent = String(value);
+
+    // Update text/src only when the override carries a value. If the
+    // override was just stripped (klient pressed "Vrátit na výchozí"),
+    // we don't know the bundled default text from this side — the
+    // editor force-reloads the iframe in that case so a fresh server
+    // render restores the bundled text. Here we just stop overriding.
+    if (field !== undefined) {
+      const value = getValue(field);
+      if (el.tagName === "IMG" && typeof value === "string") {
+        (el as HTMLImageElement).src = value;
+      } else if (typeof value === "string" || typeof value === "number") {
+        el.textContent = String(value);
+      }
     }
-    // Apply (or clear) inline style overrides. We only manage keys
-    // we've previously written so we don't fight static styles set
-    // by Tailwind classes — keys we set last time but not this time
-    // get reset to "" rather than to a baseline value we'd guess.
-    const styles = getStyle(field) as Record<string, string | number>;
+
+    // Always reconcile inline style: when field is undefined or has
+    // no style overrides, we clear every key we previously applied.
+    // This guarantees a reset visually drops all our managed inline
+    // styles even before the iframe reload completes.
+    const styles =
+      field !== undefined
+        ? (getStyle(field) as Record<string, string | number>)
+        : ({} as Record<string, string | number>);
     const newKeys = new Set(Object.keys(styles));
     const prevKeys = APPLIED_STYLE_KEYS.get(el);
     if (prevKeys) {
