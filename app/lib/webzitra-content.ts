@@ -10,6 +10,10 @@
 // returns null and the LanguageProvider keeps the static fallback.
 // That way the site survives WebZítra outages and can still be
 // developed locally without any backend dependency.
+//
+// Style envelope helpers (getValue/getStyle/isHidden) live in
+// ./webzitra-style — split out so this file stays focused on the
+// fetch + cache concern.
 
 import type { Translation } from "../i18n/translations";
 

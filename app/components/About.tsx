@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useI18n } from "../i18n/LanguageProvider";
+import { getStyle, getValue } from "../lib/webzitra-style";
 
 export default function About() {
   const { t } = useI18n();
@@ -33,25 +34,35 @@ export default function About() {
         </div>
 
         <div className="md:col-span-7 md:pt-8">
-          <span className="eyebrow" data-wz-field="about.eyebrow">
-            {t.about.eyebrow}
+          <span
+            className="eyebrow"
+            data-wz-field="about.eyebrow"
+            style={getStyle(t.about.eyebrow)}
+          >
+            {getValue(t.about.eyebrow)}
           </span>
           <h2
             className="font-display mt-3 text-4xl leading-tight md:text-5xl lg:text-6xl"
             data-wz-field="about.title"
+            style={getStyle(t.about.title)}
           >
-            {t.about.title}
+            {getValue(t.about.title)}
           </h2>
           <p
             className="font-display italic mt-6 text-xl text-[var(--accent-dark)] md:text-2xl"
             data-wz-field="about.lead"
+            style={getStyle(t.about.lead)}
           >
-            {t.about.lead}
+            {getValue(t.about.lead)}
           </p>
           <div className="mt-6 space-y-5 text-[var(--foreground)]/80 leading-relaxed">
             {t.about.paragraphs.map((p, i) => (
-              <p key={i} data-wz-field={`about.paragraphs[${i}]`}>
-                {p}
+              <p
+                key={i}
+                data-wz-field={`about.paragraphs[${i}]`}
+                style={getStyle(p)}
+              >
+                {getValue(p)}
               </p>
             ))}
           </div>
