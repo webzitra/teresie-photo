@@ -16,6 +16,7 @@
 // fetch + cache concern.
 
 import type { Translation } from "../i18n/translations";
+import type { BlockNode } from "../components/BlockRenderer";
 
 const PROJECT_ID = process.env.WEBZITRA_PROJECT_ID;
 const API =
@@ -23,12 +24,16 @@ const API =
 
 export interface WebzitraContent {
   content: Partial<Translation>;
+  blocks?: BlockNode[];
   version: number;
 }
 
-export async function getWebzitraContent(): Promise<Partial<Translation> | null> {
+/** Internal: hits the public content endpoint, returns the parsed
+ *  payload or null on any error. Both getWebzitraContent and
+ *  getWebzitraBlocks delegate here so a single render only triggers
+ *  one network round-trip (Next.js fetch dedup keeps it that way). */
+async function fetchWebzitra(): Promise<WebzitraContent | null> {
   if (!PROJECT_ID) return null;
-
   try {
     const res = await fetch(`${API}/${PROJECT_ID}`, {
       next: {
@@ -41,10 +46,22 @@ export async function getWebzitraContent(): Promise<Partial<Translation> | null>
       // through to the static fallback rather than break the page.
       return null;
     }
-    const json = (await res.json()) as WebzitraContent;
-    return json.content ?? null;
+    return (await res.json()) as WebzitraContent;
   } catch {
     // Network error, abort, parse failure — fail closed to fallback.
     return null;
   }
+}
+
+export async function getWebzitraContent(): Promise<Partial<Translation> | null> {
+  const data = await fetchWebzitra();
+  return data?.content ?? null;
+}
+
+/** Visual editor V2: returns the project's block tree from the
+ *  headless CMS, or [] when not configured / fetch failed. Empty
+ *  array signals "render legacy hardcoded layout" to page.tsx. */
+export async function getWebzitraBlocks(): Promise<BlockNode[]> {
+  const data = await fetchWebzitra();
+  return Array.isArray(data?.blocks) ? data.blocks : [];
 }
