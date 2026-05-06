@@ -23,6 +23,14 @@
 // useEffects that early-return when not in edit mode.
 
 import { useEffect } from "react";
+import { getStyle, getValue } from "../lib/webzitra-style";
+
+// Tracks which CSS properties we've previously applied per element so
+// that a subsequent update with fewer overrides clears the dropped
+// keys instead of leaving them stuck. Keyed by element identity (a
+// WeakMap handles GC). Value is the set of camelCase property names
+// last written.
+const APPLIED_STYLE_KEYS = new WeakMap<HTMLElement, Set<string>>();
 
 const EDITOR_ORIGINS: ReadonlySet<string> = new Set([
   "https://app.webzitra.cz",
@@ -98,14 +106,35 @@ function applyContent(content: unknown) {
     if (el.getAttribute("data-wz-edit-inline") === "true") return;
     const path = el.getAttribute("data-wz-field");
     if (!path) return;
-    const value = getAtPath(content, path);
-    if (value === undefined) return;
+    const field = getAtPath(content, path);
+    if (field === undefined) return;
+    const value = getValue(field);
     if (el.tagName === "IMG" && typeof value === "string") {
       (el as HTMLImageElement).src = value;
-      return;
-    }
-    if (typeof value === "string" || typeof value === "number") {
+    } else if (typeof value === "string" || typeof value === "number") {
       el.textContent = String(value);
+    }
+    // Apply (or clear) inline style overrides. We only manage keys
+    // we've previously written so we don't fight static styles set
+    // by Tailwind classes — keys we set last time but not this time
+    // get reset to "" rather than to a baseline value we'd guess.
+    const styles = getStyle(field) as Record<string, string | number>;
+    const newKeys = new Set(Object.keys(styles));
+    const prevKeys = APPLIED_STYLE_KEYS.get(el);
+    if (prevKeys) {
+      for (const k of prevKeys) {
+        if (!newKeys.has(k)) {
+          (el.style as unknown as Record<string, string>)[k] = "";
+        }
+      }
+    }
+    for (const [k, v] of Object.entries(styles)) {
+      (el.style as unknown as Record<string, string>)[k] = String(v);
+    }
+    if (newKeys.size === 0) {
+      APPLIED_STYLE_KEYS.delete(el);
+    } else {
+      APPLIED_STYLE_KEYS.set(el, newKeys);
     }
   });
 }
