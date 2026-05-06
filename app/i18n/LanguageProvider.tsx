@@ -25,6 +25,16 @@ const STORAGE_KEY = "teresie-lang";
 // wins). Used to overlay WebZítra-edited content (which may be partial)
 // on top of the static fallback in translations.ts so the page survives
 // missing fields and partial schema rollouts.
+//
+// Style-aware merge (Framer model — see docs/client-editor-redesign):
+// when override is a wrapped { value, style } envelope and the inner
+// value is empty/missing, but the base scalar exists, we preserve the
+// base text and apply the override style on top. This decouples
+// content overrides from style overrides — clearing text never blanks
+// the rendered page, it falls back to the default with whatever style
+// the klient chose. Without this, klient who deletes text on a styled
+// field permanently hides that text on the live site (which is
+// catastrophic UX, exactly the bug Lukáš hit).
 function deepMergeCs(
   base: Translation,
   override: Partial<Translation> | null | undefined,
@@ -36,6 +46,17 @@ function deepMergeCs(
   ) as Translation;
 }
 
+function isStylableEnvelope(
+  v: unknown,
+): v is { value?: unknown; style?: unknown } {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    !Array.isArray(v) &&
+    ("value" in v || "style" in v)
+  );
+}
+
 function mergeRecord(
   base: Record<string, unknown>,
   override: Record<string, unknown>,
@@ -44,6 +65,21 @@ function mergeRecord(
   for (const [k, v] of Object.entries(override)) {
     if (v === null || v === undefined) continue;
     const baseVal = base[k];
+
+    // Style-aware fallback. If override is `{ style: {...} }` (no
+    // value or empty value) and base is a scalar string/number, keep
+    // the base text and just stamp the override's style on top.
+    if (
+      isStylableEnvelope(v) &&
+      (v.value === undefined ||
+        v.value === null ||
+        v.value === "") &&
+      (typeof baseVal === "string" || typeof baseVal === "number")
+    ) {
+      out[k] = { ...v, value: baseVal };
+      continue;
+    }
+
     if (
       typeof v === "object" &&
       !Array.isArray(v) &&

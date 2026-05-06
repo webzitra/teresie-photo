@@ -41,44 +41,68 @@ const EDITOR_ORIGINS: ReadonlySet<string> = new Set([
 
 const HIGHLIGHT_STYLE_ID = "wz-edit-overlay-style";
 
+// Selection feedback follows the Webflow / Framer / Figma pattern:
+// solid 2px outline in primary purple (matches WebZítra brand), no
+// glow, no pulse animation. Glow effects bleed into adjacent elements
+// and motion is distracting in editors. Tags ("Heading", "Image")
+// appear above the selected element so klient sees what kind of
+// element they're editing without checking the side panel.
 const HIGHLIGHT_CSS = `
 [data-wz-field] {
   cursor: pointer;
-  transition: box-shadow 0.18s cubic-bezier(0.22, 1, 0.36, 1),
-              background-color 0.18s ease;
-  border-radius: 2px;
+  transition: outline-color 0.15s ease, outline-offset 0.15s ease,
+              background-color 0.15s ease;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  border-radius: 1px;
 }
 [data-wz-field]:hover {
-  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.55),
-              0 4px 16px -4px rgba(168, 85, 247, 0.25);
-  background-color: rgba(168, 85, 247, 0.04);
+  outline-color: rgba(124, 58, 237, 0.45);
+  background-color: rgba(124, 58, 237, 0.03);
 }
 [data-wz-edit-active="true"] {
-  box-shadow: 0 0 0 2px #7c3aed,
-              0 6px 20px -4px rgba(124, 58, 237, 0.45) !important;
-  background-color: rgba(124, 58, 237, 0.06) !important;
-  animation: wz-active-pulse 1.4s ease-in-out infinite;
+  outline-color: #7c3aed !important;
+  outline-offset: 3px !important;
+  background-color: rgba(124, 58, 237, 0.04) !important;
 }
-@keyframes wz-active-pulse {
-  0%, 100% { box-shadow: 0 0 0 2px #7c3aed, 0 6px 20px -4px rgba(124, 58, 237, 0.45); }
-  50% { box-shadow: 0 0 0 2px #7c3aed, 0 6px 24px -2px rgba(124, 58, 237, 0.6); }
+[data-wz-edit-active="true"]::before {
+  content: attr(data-wz-element-type);
+  position: absolute;
+  top: -22px;
+  left: -2px;
+  z-index: 9999;
+  padding: 2px 8px;
+  border-radius: 4px 4px 0 0;
+  background: #7c3aed;
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: -apple-system, system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  pointer-events: none;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+[data-wz-edit-active="true"] {
+  position: relative;
 }
 [data-wz-edit-inline="true"] {
-  box-shadow: 0 0 0 2px #7c3aed !important;
-  background-color: rgba(124, 58, 237, 0.08) !important;
+  outline-color: #7c3aed !important;
+  outline-offset: 3px !important;
+  background-color: rgba(124, 58, 237, 0.06) !important;
   cursor: text !important;
-  animation: none !important;
 }
 [data-wz-edit-inline="true"]:focus {
-  box-shadow: 0 0 0 2.5px #7c3aed,
-              0 0 0 5px rgba(124, 58, 237, 0.25) !important;
+  outline-width: 2.5px !important;
+  outline-offset: 4px !important;
 }
 [data-wz-section] {
   position: relative;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.18s ease;
 }
 [data-wz-section-hover="true"] {
-  background-color: rgba(168, 85, 247, 0.025);
+  background-color: rgba(124, 58, 237, 0.018);
 }
 [data-wz-section-hover="true"]::before {
   content: "Upravit sekci";
@@ -86,29 +110,27 @@ const HIGHLIGHT_CSS = `
   top: 16px;
   right: 16px;
   z-index: 9999;
-  padding: 7px 12px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #a855f7, #7c3aed);
+  padding: 6px 11px;
+  border-radius: 6px;
+  background: #7c3aed;
   color: white;
   font-size: 11px;
   font-weight: 600;
   font-family: -apple-system, system-ui, sans-serif;
   letter-spacing: 0.02em;
-  box-shadow: 0 4px 14px -2px rgba(124, 58, 237, 0.45),
-              0 1px 3px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   pointer-events: none;
   opacity: 0;
-  transform: translateY(-6px) scale(0.95);
-  animation: wz-section-chip-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transform: translateY(-3px);
+  animation: wz-fade-in 0.14s ease-out forwards;
 }
-@keyframes wz-section-chip-in {
-  from { opacity: 0; transform: translateY(-6px) scale(0.95); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes wz-fade-in {
+  to { opacity: 1; transform: translateY(0); }
 }
 [data-wz-section-active="true"] {
-  outline: 2px dashed rgba(124, 58, 237, 0.55);
-  outline-offset: -3px;
-  background-color: rgba(124, 58, 237, 0.025);
+  outline: 2px solid rgba(124, 58, 237, 0.4);
+  outline-offset: -2px;
+  background-color: rgba(124, 58, 237, 0.02);
 }
 `;
 
@@ -228,10 +250,46 @@ export function WebzitraEditOverlay() {
     let inlineEl: HTMLElement | null = null;
     let inlineOriginalText = "";
 
+    function elementTypeLabel(el: HTMLElement): string {
+      const tag = el.tagName;
+      switch (tag) {
+        case "H1":
+          return "Nadpis 1";
+        case "H2":
+          return "Nadpis 2";
+        case "H3":
+          return "Nadpis 3";
+        case "H4":
+        case "H5":
+        case "H6":
+          return "Nadpis";
+        case "P":
+          return "Odstavec";
+        case "SPAN":
+          return "Text";
+        case "A":
+          return el.classList.contains("btn") ? "Tlačítko" : "Odkaz";
+        case "BUTTON":
+          return "Tlačítko";
+        case "IMG":
+          return "Obrázek";
+        case "LI":
+          return "Položka";
+        default:
+          return tag.toLowerCase();
+      }
+    }
+
     function setActive(el: HTMLElement | null) {
-      if (activeEl) activeEl.removeAttribute("data-wz-edit-active");
+      if (activeEl) {
+        activeEl.removeAttribute("data-wz-edit-active");
+        activeEl.removeAttribute("data-wz-element-type");
+      }
       activeEl = el;
-      if (el) el.setAttribute("data-wz-edit-active", "true");
+      if (el) {
+        el.setAttribute("data-wz-edit-active", "true");
+        el.setAttribute("data-wz-element-type", elementTypeLabel(el));
+      }
     }
 
     function setActiveSection(el: HTMLElement | null) {
