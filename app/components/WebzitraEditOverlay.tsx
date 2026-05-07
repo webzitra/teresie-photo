@@ -14,9 +14,16 @@
 //   3. Origin-locked listener for messages from the editor. On
 //      wz:content-update it walks the new content document and
 //      patches the DOM (textContent for text fields, src for images)
-//      so saves preview without waiting for ISR.
+//      so saves preview without waiting for ISR. The same message
+//      can carry a `blocks` array — we walk [data-wz-block-field]
+//      and patch from the block tree analogously.
 //   4. Sends wz:client-ready once mounted so the editor hides its
 //      loading chip.
+//   5. Block tree analog (Visual Editor V2+): elements rendered by
+//      BlockRenderer carry data-wz-block-field="<blockId>.<fieldName>"
+//      instead of legacy data-wz-field. Same single-click /
+//      double-click affordances; events are wz:focus-block-field and
+//      wz:inline-block-text-update.
 //
 // The component renders nothing on the production site (no `wz_edit`
 // param, no listeners attached). Bundle cost is a couple of
@@ -48,7 +55,8 @@ const HIGHLIGHT_STYLE_ID = "wz-edit-overlay-style";
 // appear above the selected element so klient sees what kind of
 // element they're editing without checking the side panel.
 const HIGHLIGHT_CSS = `
-[data-wz-field] {
+[data-wz-field],
+[data-wz-block-field] {
   cursor: pointer;
   transition: outline-color 0.15s ease, outline-offset 0.15s ease,
               background-color 0.15s ease;
@@ -56,7 +64,8 @@ const HIGHLIGHT_CSS = `
   outline-offset: 2px;
   border-radius: 1px;
 }
-[data-wz-field]:hover {
+[data-wz-field]:hover,
+[data-wz-block-field]:hover {
   outline-color: rgba(124, 58, 237, 0.45);
   background-color: rgba(124, 58, 237, 0.03);
 }
@@ -166,6 +175,96 @@ function getAtPath(doc: unknown, pathStr: string): unknown {
     }
   }
   return cur;
+}
+
+// ─── block-tree helpers (V2+) ─────────────────────────────────────
+// Mirror of BlockRenderer's BlockNode shape — keep loose since we
+// receive it over postMessage and don't want to import the editor's
+// types into the klient bundle.
+interface OverlayBlockNode {
+  id: string;
+  type: string;
+  variant?: string;
+  props?: Record<string, unknown>;
+  children?: OverlayBlockNode[];
+}
+
+/** Parse `data-wz-block-field="<blockId>.<fieldName>"` into its parts.
+ *  blockIds are crypto.randomUUID() — no dots — so the FIRST dot is
+ *  the separator. Returns null when the attribute is malformed so
+ *  callers fall through to other handlers (or no-op). */
+function parseBlockFieldAttr(
+  attr: string | null,
+): { blockId: string; field: string } | null {
+  if (!attr) return null;
+  const dotIdx = attr.indexOf(".");
+  if (dotIdx <= 0 || dotIdx === attr.length - 1) return null;
+  return {
+    blockId: attr.slice(0, dotIdx),
+    field: attr.slice(dotIdx + 1),
+  };
+}
+
+function findBlockById(
+  blocks: ReadonlyArray<OverlayBlockNode>,
+  id: string,
+): OverlayBlockNode | null {
+  for (const b of blocks) {
+    if (b.id === id) return b;
+    if (b.children && b.children.length > 0) {
+      const nested = findBlockById(b.children, id);
+      if (nested) return nested;
+    }
+  }
+  return null;
+}
+
+/** Walk the block tree and patch every [data-wz-block-field] in the
+ *  DOM. Mirrors applyContent but reads block.props[fieldName] instead
+ *  of getAtPath(content, path). Same envelope unwrap, same APPLIED_STYLE_KEYS
+ *  bookkeeping so styles reset cleanly when an override is dropped. */
+function applyBlocks(blocks: ReadonlyArray<OverlayBlockNode>) {
+  document
+    .querySelectorAll<HTMLElement>("[data-wz-block-field]")
+    .forEach((el) => {
+      if (el.getAttribute("data-wz-edit-inline") === "true") return;
+      const parsed = parseBlockFieldAttr(el.getAttribute("data-wz-block-field"));
+      if (!parsed) return;
+      const block = findBlockById(blocks, parsed.blockId);
+      if (!block) return;
+      const field = block.props ? block.props[parsed.field] : undefined;
+
+      if (field !== undefined) {
+        const value = getValue(field);
+        if (el.tagName === "IMG" && typeof value === "string") {
+          (el as HTMLImageElement).src = value;
+        } else if (typeof value === "string" || typeof value === "number") {
+          el.textContent = String(value);
+        }
+      }
+
+      const styles =
+        field !== undefined
+          ? (getStyle(field) as Record<string, string | number>)
+          : ({} as Record<string, string | number>);
+      const newKeys = new Set(Object.keys(styles));
+      const prevKeys = APPLIED_STYLE_KEYS.get(el);
+      if (prevKeys) {
+        for (const k of prevKeys) {
+          if (!newKeys.has(k)) {
+            (el.style as unknown as Record<string, string>)[k] = "";
+          }
+        }
+      }
+      for (const [k, v] of Object.entries(styles)) {
+        (el.style as unknown as Record<string, string>)[k] = String(v);
+      }
+      if (newKeys.size === 0) {
+        APPLIED_STYLE_KEYS.delete(el);
+      } else {
+        APPLIED_STYLE_KEYS.set(el, newKeys);
+      }
+    });
 }
 
 function applyContent(content: unknown) {
@@ -320,6 +419,7 @@ export function WebzitraEditOverlay() {
     function exitInline(commit: boolean) {
       if (!inlineEl) return;
       const el = inlineEl;
+      const blockFieldAttr = el.getAttribute("data-wz-block-field");
       const path = el.getAttribute("data-wz-field") || "";
       const newText = el.textContent ?? "";
       el.removeAttribute("data-wz-edit-inline");
@@ -329,8 +429,18 @@ export function WebzitraEditOverlay() {
       el.removeEventListener("blur", onInlineBlur);
       el.removeEventListener("keydown", onInlineKeydown);
       inlineEl = null;
-      if (commit && path && newText !== inlineOriginalText) {
-        postToEditor({ type: "wz:inline-text-update", path, value: newText });
+      if (commit && newText !== inlineOriginalText) {
+        const parsed = parseBlockFieldAttr(blockFieldAttr);
+        if (parsed) {
+          postToEditor({
+            type: "wz:inline-block-text-update",
+            blockId: parsed.blockId,
+            field: parsed.field,
+            value: newText,
+          });
+        } else if (path) {
+          postToEditor({ type: "wz:inline-text-update", path, value: newText });
+        }
       } else if (!commit) {
         // Restore original text on cancel.
         el.textContent = inlineOriginalText;
@@ -372,10 +482,40 @@ export function WebzitraEditOverlay() {
 
     function onClick(e: MouseEvent) {
       const target = e.target as Element | null;
-      const fieldEl = target?.closest("[data-wz-field]") as HTMLElement | null;
 
-      // 1. Field click — element selection. Element wins over section
-      //    when click target is inside both.
+      // 1a. Block-tree field click (Visual Editor V2+). Block fields
+      //     are nested inside legacy data-wz-section (block-rendered
+      //     hero still has data-wz-section="hero" on its root) so we
+      //     check block-field FIRST — otherwise the section fallback
+      //     swallows the click.
+      const blockFieldEl = target?.closest(
+        "[data-wz-block-field]",
+      ) as HTMLElement | null;
+      if (blockFieldEl) {
+        if (inlineEl && blockFieldEl !== inlineEl) {
+          exitInline(true);
+          return;
+        }
+        if (inlineEl === blockFieldEl) return;
+        const parsed = parseBlockFieldAttr(
+          blockFieldEl.getAttribute("data-wz-block-field"),
+        );
+        if (!parsed) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setActive(blockFieldEl);
+        setActiveSection(null);
+        postToEditor({
+          type: "wz:focus-block-field",
+          blockId: parsed.blockId,
+          field: parsed.field,
+        });
+        return;
+      }
+
+      // 1b. Legacy schema field click — element selection. Element
+      //     wins over section when click target is inside both.
+      const fieldEl = target?.closest("[data-wz-field]") as HTMLElement | null;
       if (fieldEl) {
         if (inlineEl && fieldEl !== inlineEl) {
           exitInline(true);
@@ -417,6 +557,17 @@ export function WebzitraEditOverlay() {
 
     function onDoubleClick(e: MouseEvent) {
       const target = e.target as Element | null;
+      // Block-field takes precedence (same reasoning as onClick).
+      const blockFieldEl = target?.closest(
+        "[data-wz-block-field]",
+      ) as HTMLElement | null;
+      if (blockFieldEl && isInlineEditable(blockFieldEl)) {
+        e.preventDefault();
+        e.stopPropagation();
+        setActive(blockFieldEl);
+        startInline(blockFieldEl);
+        return;
+      }
       const fieldEl = target?.closest("[data-wz-field]") as HTMLElement | null;
       if (!fieldEl || !isInlineEditable(fieldEl)) return;
       e.preventDefault();
@@ -456,13 +607,20 @@ export function WebzitraEditOverlay() {
 
     function onMessage(e: MessageEvent) {
       if (!EDITOR_ORIGINS.has(e.origin)) return;
-      const data = e.data as { type?: string; content?: unknown } | null;
+      const data = e.data as {
+        type?: string;
+        content?: unknown;
+        blocks?: unknown;
+      } | null;
       if (!data || typeof data.type !== "string") return;
       if (data.type === "wz:editor-ready") {
         // Editor confirmed the handshake; nothing to do.
       }
-      if (data.type === "wz:content-update" && data.content !== undefined) {
-        applyContent(data.content);
+      if (data.type === "wz:content-update") {
+        if (data.content !== undefined) applyContent(data.content);
+        if (Array.isArray(data.blocks)) {
+          applyBlocks(data.blocks as ReadonlyArray<OverlayBlockNode>);
+        }
       }
     }
 
