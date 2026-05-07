@@ -24,6 +24,12 @@
 //      instead of legacy data-wz-field. Same single-click /
 //      double-click affordances; events are wz:focus-block-field and
 //      wz:inline-block-text-update.
+//   6. Iframe-side "+" insert bars (Elementor pattern): hover-revealed
+//      buttons between [data-wz-section] elements and at the start /
+//      end of the page. Click posts wz:request-block-picker {
+//      afterBlockId } and the editor opens its BlockPickerDialog.
+//      MutationObserver re-injects bars when sections come and go
+//      (e.g. after ISR refresh post-insert).
 //
 // The component renders nothing on the production site (no `wz_edit`
 // param, no listeners attached). Bundle cost is a couple of
@@ -140,6 +146,76 @@ const HIGHLIGHT_CSS = `
   outline: 2px solid rgba(124, 58, 237, 0.4);
   outline-offset: -2px;
   background-color: rgba(124, 58, 237, 0.02);
+}
+
+/* ── Iframe-side insert bars (Elementor pattern) ──────────────────
+   Thin invisible strip between sections that grows on hover into a
+   purple gradient pill. Klient klikne → editor opens BlockPickerDialog. */
+[data-wz-insert-bar] {
+  position: relative;
+  height: 0;
+  margin: 0;
+  z-index: 9998;
+  pointer-events: auto;
+}
+[data-wz-insert-bar]::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(124, 58, 237, 0.5), transparent);
+  opacity: 0;
+  transition: opacity 0.16s ease;
+  pointer-events: none;
+}
+[data-wz-insert-bar]:hover {
+  height: 56px;
+}
+[data-wz-insert-bar]:hover::before,
+[data-wz-insert-bar]:focus-within::before {
+  opacity: 1;
+}
+[data-wz-insert-bar] > button {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.85);
+  opacity: 0;
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #7c3aed, #c026d3);
+  color: white;
+  border: none;
+  border-radius: 9999px;
+  padding: 6px 14px;
+  font: 600 11.5px -apple-system, system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    0 0 0 3px rgba(124, 58, 237, 0.25);
+  cursor: pointer;
+  transition: transform 0.16s ease, opacity 0.16s ease, box-shadow 0.16s ease;
+}
+[data-wz-insert-bar]:hover > button,
+[data-wz-insert-bar]:focus-within > button {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, -50%) scale(1);
+}
+[data-wz-insert-bar] > button:hover {
+  transform: translate(-50%, -50%) scale(1.06);
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.25),
+    0 0 0 4px rgba(124, 58, 237, 0.4);
+}
+[data-wz-insert-bar] > button:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 3px;
 }
 `;
 
@@ -624,6 +700,99 @@ export function WebzitraEditOverlay() {
       }
     }
 
+    // ─── Iframe insert bars ───────────────────────────────────────
+    // Inject "+" insertion bars before / between / after every
+    // [data-wz-section] root. Each bar carries the blockId of the
+    // section ABOVE it (or empty string = "insert at start"); click
+    // posts wz:request-block-picker to the editor. MutationObserver
+    // re-runs the inject pass whenever sections come or go (typical
+    // after ISR refresh post-insert).
+    const INSERT_BAR_ATTR = "data-wz-insert-bar";
+
+    function makeInsertBar(afterBlockId: string): HTMLElement {
+      const bar = document.createElement("div");
+      bar.setAttribute(INSERT_BAR_ATTR, "");
+      bar.dataset.wzInsertAfter = afterBlockId;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.setAttribute(
+        "aria-label",
+        afterBlockId ? "Přidat blok pod tuto sekci" : "Přidat blok na začátek",
+      );
+      button.innerHTML =
+        '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg><span>Přidat blok</span>';
+      button.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        postToEditor({
+          type: "wz:request-block-picker",
+          afterBlockId: afterBlockId || null,
+        });
+      });
+      bar.appendChild(button);
+      return bar;
+    }
+
+    function refreshInsertBars() {
+      // Drop existing bars first so we don't pile up duplicates each
+      // time a section moves or the page rerenders. Only ours are
+      // tagged with INSERT_BAR_ATTR.
+      document
+        .querySelectorAll(`[${INSERT_BAR_ATTR}]`)
+        .forEach((el) => el.remove());
+
+      const sections = Array.from(
+        document.querySelectorAll<HTMLElement>("[data-wz-section]"),
+      );
+      if (sections.length === 0) return;
+
+      // Bar BEFORE the first section — insert at start (afterBlockId=null).
+      const first = sections[0]!;
+      first.parentElement?.insertBefore(makeInsertBar(""), first);
+
+      // Bar AFTER every section. Last one becomes "insert at end".
+      for (const section of sections) {
+        const blockId = section.getAttribute("data-wz-block") ?? "";
+        const bar = makeInsertBar(blockId);
+        section.parentElement?.insertBefore(bar, section.nextSibling);
+      }
+    }
+
+    // Debounce repeated mutations into one re-inject. Section additions
+    // typically come in a burst (React commit + child renders).
+    let refreshHandle: ReturnType<typeof setTimeout> | null = null;
+    function scheduleRefresh() {
+      if (refreshHandle !== null) return;
+      refreshHandle = setTimeout(() => {
+        refreshHandle = null;
+        refreshInsertBars();
+      }, 120);
+    }
+
+    refreshInsertBars();
+
+    const observer = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        // Cheap pre-check: only care about additions/removals of section
+        // roots. Editing text inside a section emits attribute mutations
+        // we should ignore.
+        const touched = [
+          ...Array.from(m.addedNodes),
+          ...Array.from(m.removedNodes),
+        ];
+        const sectionTouch = touched.some((n) => {
+          if (!(n instanceof HTMLElement)) return false;
+          if (n.matches?.("[data-wz-section]")) return true;
+          return !!n.querySelector?.("[data-wz-section]");
+        });
+        if (sectionTouch) {
+          scheduleRefresh();
+          return;
+        }
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
     document.addEventListener("click", onClick, true);
     document.addEventListener("dblclick", onDoubleClick, true);
     document.addEventListener("mousemove", onMouseMove);
@@ -640,6 +809,11 @@ export function WebzitraEditOverlay() {
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseleave", onMouseLeave);
       window.removeEventListener("message", onMessage);
+      observer.disconnect();
+      if (refreshHandle !== null) clearTimeout(refreshHandle);
+      document
+        .querySelectorAll(`[${INSERT_BAR_ATTR}]`)
+        .forEach((el) => el.remove());
       const style = document.getElementById(HIGHLIGHT_STYLE_ID);
       if (style) style.remove();
       if (inlineEl) exitInline(false);
