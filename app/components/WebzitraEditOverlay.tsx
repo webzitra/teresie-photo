@@ -112,6 +112,27 @@ const HIGHLIGHT_CSS = `
   outline-width: 2.5px !important;
   outline-offset: 4px !important;
 }
+[data-wz-edit-multiline="true"] {
+  white-space: pre-wrap !important;
+}
+[data-wz-edit-multiline="true"]::after {
+  content: "Enter = nový řádek · Cmd+Enter pro uložit · Esc pro zrušit";
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 9999;
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: #1f1227;
+  color: #f3e8ff;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: -apple-system, system-ui, sans-serif;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
 [data-wz-section] {
   position: relative;
   transition: background-color 0.18s ease;
@@ -417,8 +438,55 @@ const INLINE_EDITABLE_TAGS = new Set([
   "EM",
 ]);
 
+// Tags whose inline edit we treat as multi-line: Enter inserts a new
+// line (browser default <br>) and only Cmd/Ctrl+Enter commits. Single-
+// line tags (headings, buttons, links) keep the original behavior —
+// Enter commits, since wrapping a heading is rarely intended.
+const MULTILINE_INLINE_TAGS = new Set(["P", "BLOCKQUOTE"]);
+
 function isInlineEditable(el: HTMLElement): boolean {
   return INLINE_EDITABLE_TAGS.has(el.tagName);
+}
+
+function isMultilineInline(el: HTMLElement): boolean {
+  if (el.dataset.wzMultiline === "true") return true;
+  if (el.dataset.wzMultiline === "false") return false;
+  return MULTILINE_INLINE_TAGS.has(el.tagName);
+}
+
+// Read the inline text out of a contentEditable host. For multi-line
+// hosts we must not use textContent — Chrome inserts <br> for Shift+
+// Enter and wraps later lines in <div>, both of which textContent
+// silently strips, so the user's newlines round-trip to "". Walk the
+// DOM and emit \n at line breaks instead.
+function extractInlineText(el: HTMLElement, multiline: boolean): string {
+  if (!multiline) return el.textContent ?? "";
+  const parts: string[] = [];
+  const walk = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      parts.push(node.nodeValue ?? "");
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const child = node as HTMLElement;
+    const tag = child.tagName;
+    if (tag === "BR") {
+      parts.push("\n");
+      return;
+    }
+    // Block-ish wrappers Chrome inserts after Enter — emit a leading
+    // newline before the block's text content (skip the very first
+    // node so we don't get a stray \n at the start).
+    const isBlock = tag === "DIV" || tag === "P";
+    if (isBlock && parts.length > 0 && !parts[parts.length - 1]?.endsWith("\n")) {
+      parts.push("\n");
+    }
+    child.childNodes.forEach(walk);
+  };
+  el.childNodes.forEach(walk);
+  // Collapse runs of >2 newlines (typical when Chrome wraps each new
+  // line in its own <div>) and trim trailing whitespace.
+  return parts.join("").replace(/\n{3,}/g, "\n\n").replace(/\s+$/, "");
 }
 
 export function WebzitraEditOverlay() {
@@ -497,8 +565,9 @@ export function WebzitraEditOverlay() {
       const el = inlineEl;
       const blockFieldAttr = el.getAttribute("data-wz-block-field");
       const path = el.getAttribute("data-wz-field") || "";
-      const newText = el.textContent ?? "";
+      const newText = extractInlineText(el, isMultilineInline(el));
       el.removeAttribute("data-wz-edit-inline");
+      el.removeAttribute("data-wz-edit-multiline");
       el.removeAttribute("contenteditable");
       el.removeAttribute("spellcheck");
       // Detach the input listeners that the inline session installed.
@@ -518,8 +587,19 @@ export function WebzitraEditOverlay() {
           postToEditor({ type: "wz:inline-text-update", path, value: newText });
         }
       } else if (!commit) {
-        // Restore original text on cancel.
-        el.textContent = inlineOriginalText;
+        // Restore original text on cancel. For multi-line hosts the
+        // original was stored with \n separators; rebuild the DOM with
+        // <br> between lines so the visual revert matches.
+        if (isMultilineInline(el)) {
+          el.innerHTML = "";
+          const lines = inlineOriginalText.split("\n");
+          lines.forEach((line, i) => {
+            if (i > 0) el.appendChild(document.createElement("br"));
+            if (line) el.appendChild(document.createTextNode(line));
+          });
+        } else {
+          el.textContent = inlineOriginalText;
+        }
       }
     }
 
@@ -528,9 +608,18 @@ export function WebzitraEditOverlay() {
     }
 
     function onInlineKeydown(e: KeyboardEvent) {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        (e.target as HTMLElement).blur();
+      const el = e.target as HTMLElement;
+      if (e.key === "Enter") {
+        // Multi-line hosts: Enter inserts a newline (let the browser do
+        // it), Cmd/Ctrl+Enter or blur commits. Single-line hosts keep
+        // the heading/button behavior — Enter commits, Shift+Enter
+        // would technically still insert <br> but is unusual.
+        const multiline = isMultilineInline(el);
+        const wantsCommit = multiline ? e.metaKey || e.ctrlKey : !e.shiftKey;
+        if (wantsCommit) {
+          e.preventDefault();
+          el.blur();
+        }
       } else if (e.key === "Escape") {
         e.preventDefault();
         exitInline(false);
@@ -541,10 +630,12 @@ export function WebzitraEditOverlay() {
       // If another element was already in inline edit, commit it.
       if (inlineEl && inlineEl !== el) exitInline(true);
       inlineEl = el;
-      inlineOriginalText = el.textContent ?? "";
+      const multiline = isMultilineInline(el);
+      inlineOriginalText = extractInlineText(el, multiline);
       el.setAttribute("contenteditable", "true");
       el.setAttribute("spellcheck", "true");
       el.setAttribute("data-wz-edit-inline", "true");
+      if (multiline) el.setAttribute("data-wz-edit-multiline", "true");
       el.addEventListener("blur", onInlineBlur);
       el.addEventListener("keydown", onInlineKeydown);
       el.focus();

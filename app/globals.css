@@ -126,3 +126,13 @@ body {
     animation: none;
   }
 }
+
+/* Editable text fields preserve user-entered newlines on render. The
+ * editor commits multi-line text with \n separators; without pre-line
+ * HTML whitespace-collapse would silently drop them. Safe for legacy
+ * content (no newlines = identical render). */
+p[data-wz-field],
+p[data-wz-block-field],
+[data-wz-multiline="true"] {
+  white-space: pre-line;
+}
