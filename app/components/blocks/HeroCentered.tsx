@@ -65,8 +65,9 @@ export function HeroCentered({ blockId, props }: BlockProps) {
           {(getValue(p.title) as string) ?? ""}
         </h1>
         <p
-          className="mt-6 max-w-2xl text-base text-white/85 md:text-lg fade-up"
+          className="mt-6 max-w-2xl whitespace-pre-line text-base text-white/85 md:text-lg fade-up"
           data-wz-block-field={`${blockId}.subtitle`}
+          data-wz-multiline="true"
           style={getStyle(p.subtitle)}
         >
           {(getValue(p.subtitle) as string) ?? ""}
