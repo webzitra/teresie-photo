@@ -610,15 +610,29 @@ export function WebzitraEditOverlay() {
     function onInlineKeydown(e: KeyboardEvent) {
       const el = e.target as HTMLElement;
       if (e.key === "Enter") {
-        // Multi-line hosts: Enter inserts a newline (let the browser do
-        // it), Cmd/Ctrl+Enter or blur commits. Single-line hosts keep
-        // the heading/button behavior — Enter commits, Shift+Enter
-        // would technically still insert <br> but is unusual.
+        // Multi-line hosts: Enter inserts a <br> (we force it manually
+        // because Chrome's default for contentEditable on a <p> is to
+        // split into a sibling <p>, which falls outside our edit scope
+        // and gets dropped on commit). Cmd/Ctrl+Enter commits.
+        // Single-line hosts keep Enter-to-commit.
         const multiline = isMultilineInline(el);
         const wantsCommit = multiline ? e.metaKey || e.ctrlKey : !e.shiftKey;
         if (wantsCommit) {
           e.preventDefault();
           el.blur();
+        } else if (multiline) {
+          // Force a real line break inside the host. insertLineBreak
+          // lands as either <br> or \n in modern Chrome/Safari/Firefox
+          // and is captured by extractInlineText() on commit.
+          e.preventDefault();
+          try {
+            document.execCommand("insertLineBreak");
+          } catch {
+            // execCommand is deprecated but still ships everywhere.
+            // If a future browser drops it, fall through — Shift+Enter
+            // still produces a <br> via the default contentEditable
+            // path, just less ergonomic.
+          }
         }
       } else if (e.key === "Escape") {
         e.preventDefault();
@@ -636,6 +650,17 @@ export function WebzitraEditOverlay() {
       el.setAttribute("spellcheck", "true");
       el.setAttribute("data-wz-edit-inline", "true");
       if (multiline) el.setAttribute("data-wz-edit-multiline", "true");
+      // Force <br> as Chrome's default paragraph separator inside the
+      // host — without this, Enter on a <p contentEditable> creates a
+      // sibling <p> outside our edit scope, and the new line silently
+      // disappears on commit. Pair with the explicit insertLineBreak
+      // we run in onInlineKeydown for older browsers that ignore the
+      // command.
+      try {
+        document.execCommand("defaultParagraphSeparator", false, "br");
+      } catch {
+        // Ignore — we still preventDefault + insertLineBreak in keydown.
+      }
       el.addEventListener("blur", onInlineBlur);
       el.addEventListener("keydown", onInlineKeydown);
       el.focus();
