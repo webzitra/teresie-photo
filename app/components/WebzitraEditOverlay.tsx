@@ -83,21 +83,21 @@ const HIGHLIGHT_CSS = `
 [data-wz-edit-active="true"]::before {
   content: attr(data-wz-element-type);
   position: absolute;
-  top: -22px;
+  top: -19px;
   left: -2px;
   z-index: 9999;
-  padding: 2px 8px;
+  padding: 1.5px 7px;
   border-radius: 4px 4px 0 0;
-  background: #7c3aed;
+  background: rgba(124, 58, 237, 0.85);
   color: white;
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 9.5px;
+  font-weight: 500;
   font-family: -apple-system, system-ui, sans-serif;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.015em;
   pointer-events: none;
   white-space: nowrap;
   line-height: 1.4;
+  backdrop-filter: blur(4px);
 }
 [data-wz-edit-active="true"] {
   position: relative;
