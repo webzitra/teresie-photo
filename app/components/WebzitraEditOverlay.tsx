@@ -724,12 +724,46 @@ export function WebzitraEditOverlay() {
         return;
       }
 
-      // 2. Section click — section selection (background of the
-      //    [data-wz-section] root, no inner field hit).
+      // 2. Section background click — redirect to first editable
+      //    descendant if available. Mirrors test-klient-demo#8: hit-
+      //    zone for the section root is way bigger than the heading
+      //    inside, so klients land on padding more often than on
+      //    the <h2>. Old behavior fired wz:focus-section → editor
+      //    opened SectionPanel which is just a field nav, forcing
+      //    a second click. New behavior focuses the first child
+      //    [data-wz-field] / [data-wz-block-field] so a single
+      //    click lands the klient in an actual edit form.
       const sectionEl = target?.closest(
         "[data-wz-section]",
       ) as HTMLElement | null;
       if (sectionEl) {
+        const firstField = sectionEl.querySelector(
+          "[data-wz-field], [data-wz-block-field]",
+        ) as HTMLElement | null;
+        if (firstField) {
+          e.preventDefault();
+          e.stopPropagation();
+          const blockFieldAttr = firstField.getAttribute("data-wz-block-field");
+          const fieldPath = firstField.getAttribute("data-wz-field");
+          setActive(firstField);
+          setActiveSection(null);
+          if (blockFieldAttr) {
+            const parsed = parseBlockFieldAttr(blockFieldAttr);
+            if (parsed) {
+              postToEditor({
+                type: "wz:focus-block-field",
+                blockId: parsed.blockId,
+                field: parsed.field,
+              });
+              return;
+            }
+          }
+          if (fieldPath) {
+            postToEditor({ type: "wz:focus-field", path: fieldPath });
+            return;
+          }
+        }
+        // No editable descendant — fall back to plain section selection.
         const key = sectionEl.getAttribute("data-wz-section");
         if (!key) return;
         e.preventDefault();
