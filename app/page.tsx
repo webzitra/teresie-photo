@@ -8,7 +8,11 @@ import Footer from "./components/Footer";
 import { BlockRenderer } from "./components/BlockRenderer";
 import { getWebzitraBlocks } from "./lib/webzitra-content";
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ wz_edit?: string }>;
+}) {
   // Visual editor V2: when project_content.blocks is non-empty, render
   // the data-driven block tree. When empty (default for klients that
   // haven't been migrated yet), fall back to the legacy hardcoded
@@ -16,7 +20,13 @@ export default async function Home() {
   //
   // V3 will let klients add/remove/reorder blocks from the editor;
   // until then blocks stay [] for everyone and this branch is dormant.
-  const blocks = await getWebzitraBlocks();
+  //
+  // ?wz_edit=1 is set by the WebZítra editor iframe — when present,
+  // bypass every layer of caching so each refresh reflects the latest
+  // save within ~200 ms (no 60 s ISR/CDN wait).
+  const params = await searchParams;
+  const editMode = params.wz_edit === "1";
+  const blocks = await getWebzitraBlocks(editMode);
   return (
     <>
       <Nav />
