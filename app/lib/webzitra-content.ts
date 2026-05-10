@@ -31,16 +31,35 @@ export interface WebzitraContent {
 /** Internal: hits the public content endpoint, returns the parsed
  *  payload or null on any error. Both getWebzitraContent and
  *  getWebzitraBlocks delegate here so a single render only triggers
- *  one network round-trip (Next.js fetch dedup keeps it that way). */
-async function fetchWebzitra(): Promise<WebzitraContent | null> {
+ *  one network round-trip (Next.js fetch dedup keeps it that way).
+ *
+ *  When `editMode` is true (caller saw ?wz_edit=1 in the request URL,
+ *  i.e. the page is rendering inside the WebZítra editor iframe), we
+ *  bypass every cache layer: ?fresh=1 makes the upstream API respond
+ *  with `cache-control: no-store`, and `cache: "no-store"` makes
+ *  Next.js skip its data cache too. Klient sees their save reflected
+ *  within ~200 ms of the DB write instead of waiting up to 60 s for
+ *  ISR + CDN edge cache to expire. Public visitors (default branch)
+ *  keep the 60 s tag-revalidate path — no SEO/perf regression. */
+async function fetchWebzitra(
+  editMode: boolean = false,
+): Promise<WebzitraContent | null> {
   if (!PROJECT_ID) return null;
   try {
-    const res = await fetch(`${API}/${PROJECT_ID}`, {
-      next: {
-        tags: [`content:${PROJECT_ID}`],
-        revalidate: 60,
-      },
-    });
+    const url = editMode
+      ? `${API}/${PROJECT_ID}?fresh=1`
+      : `${API}/${PROJECT_ID}`;
+    const res = await fetch(
+      url,
+      editMode
+        ? { cache: "no-store" }
+        : {
+            next: {
+              tags: [`content:${PROJECT_ID}`],
+              revalidate: 60,
+            },
+          },
+    );
     if (!res.ok) {
       // 404 = no schema yet, 5xx = WebZítra issue. Either way, fall
       // through to the static fallback rather than break the page.
@@ -53,15 +72,21 @@ async function fetchWebzitra(): Promise<WebzitraContent | null> {
   }
 }
 
-export async function getWebzitraContent(): Promise<Partial<Translation> | null> {
-  const data = await fetchWebzitra();
+export async function getWebzitraContent(
+  editMode: boolean = false,
+): Promise<Partial<Translation> | null> {
+  const data = await fetchWebzitra(editMode);
   return data?.content ?? null;
 }
 
 /** Visual editor V2: returns the project's block tree from the
  *  headless CMS, or [] when not configured / fetch failed. Empty
- *  array signals "render legacy hardcoded layout" to page.tsx. */
-export async function getWebzitraBlocks(): Promise<BlockNode[]> {
-  const data = await fetchWebzitra();
+ *  array signals "render legacy hardcoded layout" to page.tsx.
+ *  `editMode` parameter mirrors getWebzitraContent — bypasses cache
+ *  when set so saves reflect on iframe refresh in editor mode. */
+export async function getWebzitraBlocks(
+  editMode: boolean = false,
+): Promise<BlockNode[]> {
+  const data = await fetchWebzitra(editMode);
   return Array.isArray(data?.blocks) ? data.blocks : [];
 }
